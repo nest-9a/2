@@ -33,9 +33,9 @@
       <div class="navigation">
         <ul>
           <i id="menu-close" class="fas fa-times"></i>
-				<li><a href="index.html" class="active">Нүүр Хуудас</a></li>
-				<li><a href="buteel.html">Бүтээлийн танилцуулга</a></li>
-				<li><a href="course-inner.html" class="active">Хичээлийн тухай</a></li>
+				<li><a href="index.html">Нүүр Хуудас</a></li>
+				<li><a href="buteel.html" class="active">Бүтээлийн танилцуулга</a></li>
+				<li><a href="course-inner.html" >Хичээлийн тухай</a></li>
 				<li><a href="contact.html">Холбоо барих</a></li>
         </ul>
 
@@ -51,32 +51,154 @@
     <div id="blog-container">
       <div class="blogs blogpost">
         <div class="post">
-          <img src="img/b1.jpg" alt="" />
-          <h3>Вэб хөгжүүлэлтийг хамгийн хялбар аргаар сур</h3>
+          <img src="https://media.istockphoto.com/id/165607737/vector/carnival-duck-shoot.jpg?s=612x612&w=0&k=20&c=_ifsRWH5X4O0yXjfps8BfkoTdoTx6yhkD92WW5YA2yw=" alt="" />
+          <h3>Манай Arcade Game</h3>
           <p>
-            Тус компани өөрөө маш амжилттай компани. Учир нь энд, тэнд ялгах нь
-            ижил зүйлийг хийх оюун ухаан юм. Тэд саад тотгорыг хангах, нь!
-            Тиймээс хэн ч хамгийн зохистой хүмүүсийн үүрэг хариуцлага хүлээхийг
-            хүсдэггүй!
+            Тоглогчид шар өнгийн нугасуудыг онилон буудаж онох ёстой. Усан дээр хөвж буй болон тавиур дээр байрласан нугаснуудыг онох нь зорилго юм. Энэ төрлийн тоглоом нь үзэсгэлэн, наадам, паркуудад түгээмэл байдаг. Хүн тус бүр онох байдалдаа тохируулан шагнал хүртдэг.
           </p>
-
+          <img src="img/Image 5-6-25 at 12.49 PM.jpg" alt="" />
           <p>
-            Тус компани өөрөө маш амжилттай компани. Учир нь энд, тэнд ялгах нь
-            ижил зүйлийг хийх оюун ухаан юм. Тэд саад тотгорыг хангах, нь!
-            Тиймээс хэн ч хамгийн зохистой хүмүүсийн үүрэг хариуцлага хүлээхийг
-            хүсдэггүй!
+            #include <Wire.h>
+              #include <LiquidCrystal_I2C.h>
+              #include <Servo.h>
+              
+              // Limit switch pins
+              const int limitSwitchPins[6] = {2, 3, 4, 5, 6, 7};
+              
+              // Servo pins
+              const int servoPins[6] = {8, 9, 10, 11, 12, 13};
+              
+              // Button and LED pins
+              const int buttonPin = 1;  // Big dome push button on pin 1
+              const int ledPin = 0;     // LED on pin 0
+              
+              // Create servo objects
+              Servo servos[6];
+              
+              // LCD
+              LiquidCrystal_I2C lcd(0x27, 16, 2); // Make sure this matches your LCD I2C address
+              
+              // Variables
+              int score = 0;
+              bool lastSwitchStates[6] = {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH};
+              bool scoreChanged = true;
+              int lastScoreDiv6 = 0; // Keeps track when the last servo movement happened
+              
+              // Button debounce variables
+              unsigned long lastButtonPressTime = 0;
+              unsigned long debounceDelay = 200;  // 200 ms debounce delay
+              
+              void setup() {
+                // Initialize LCD
+                lcd.init();
+                delay(100);
+                lcd.backlight();
+                lcd.setCursor(0, 0);
+                lcd.print("Limit Switches:");
+                lcd.setCursor(0, 1);
+                lcd.print("Score: 0");
+              
+                // Setup limit switches and servos
+                for (int i = 0; i < 6; i++) {
+                  pinMode(limitSwitchPins[i], INPUT_PULLUP);
+                  servos[i].attach(servoPins[i]);
+                  servos[i].write(0); // Start at 0 degrees
+                }
+              
+                // Setup button and LED
+                pinMode(buttonPin, INPUT_PULLUP);  // Button on pin 1
+                pinMode(ledPin, OUTPUT);           // LED on pin 0
+              
+                Serial.begin(9600);
+                Serial.println("System Initialized");
+              }
+              
+              void loop() {
+                // Check button press for reset
+                int buttonState = digitalRead(buttonPin);
+              
+                // If the button is pressed and debounced, reset score and move servos
+                if (buttonState == LOW && (millis() - lastButtonPressTime) > debounceDelay) {
+                  lastButtonPressTime = millis();
+                  
+                  // Reset score
+                  score = 0;
+                  scoreChanged = true;
+                  
+                  // Light up the LED
+                  digitalWrite(ledPin, HIGH);
+                  
+                  // Move all servos
+                  moveAllServos();
+              
+                  Serial.println("Button pressed: Score Reset");
+                }
+              
+                // Turn off LED after a delay
+                if (buttonState == HIGH) {
+                  digitalWrite(ledPin, LOW);  // Turn off LED when button is not pressed
+                }
+              
+                // Process limit switches
+                for (int i = 0; i < 6; i++) {
+                  int switchState = digitalRead(limitSwitchPins[i]);
+              
+                  if (switchState == LOW && lastSwitchStates[i] == HIGH) {
+                    // Switch just pressed
+                    score++;
+                    scoreChanged = true;
+                    Serial.print("Switch ");
+                    Serial.print(i + 1);
+                    Serial.println(" pressed");
+              
+                    // Check if score is a new multiple of 6
+                    if (score / 6 > lastScoreDiv6) {
+                      moveAllServos();
+                      lastScoreDiv6 = score / 6; // Update last division
+                    }
+                  }
+              
+                  lastSwitchStates[i] = switchState; // Update last state
+                }
+              
+                // Update LCD if the score has changed
+                if (scoreChanged) {
+                  updateLCD();
+                  scoreChanged = false;
+                }
+              
+                delay(50); // Stability
+              }
+              
+              // Move all servos
+              void moveAllServos() {
+                Serial.println("Moving all servos!");
+              
+                for (int i = 0; i < 6; i++) {
+                  servos[i].write(90); // Move to 90 degrees
+                }
+                delay(500);
+                for (int i = 0; i < 6; i++) {
+                  servos[i].write(0);  // Return to 0 degrees
+                }
+              }
+              
+              // Update LCD with score
+              void updateLCD() {
+                lcd.clear();
+                lcd.setCursor(0, 0);
+                lcd.print("Limit Switches:");
+                lcd.setCursor(0, 1);
+                lcd.print("Score: ");
+                lcd.print(score);
+                delay(10);
+              }
           </p>
-
+          <img src="img/Screen Shot 2025-05-06 at 12.56.54 PM.png" alt="" />
           <p>
-            Тус компани өөрөө маш амжилттай компани. Учир нь энд, тэнд ялгах нь
-            ижил зүйлийг хийх оюун ухаан юм. Тэд саад тотгорыг хангах, нь!
-            Тиймээс хэн ч хамгийн зохистой хүмүүсийн үүрэг хариуцлага хүлээхийг
-            хүсдэггүй!
           </p>
 
           <br />
-
-          <a href="#">Үрэгжилүүлж унших</a>
         </div>
       </div>
     </div>
